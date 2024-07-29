@@ -1,4 +1,7 @@
 use crate::database::postgres::config::Config;
+use crate::database::provider::DatabaseReader;
+use crate::database::provider::DatabaseWriter;
+use crate::model::User;
 use chrono::{NaiveDateTime, Utc};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
@@ -17,11 +20,19 @@ impl PostgresDB {
         let manager = ConnectionManager::new(database_url);
         let pool = Pool::builder().max_size(pool_size).build(manager)?;
         let connection = pool.get()?;
-
         Ok(PostgresDB { pool })
     }
 
     pub fn from_config(cfg: &Config) -> anyhow::Result<Self> {
         PostgresDB::new(&cfg.db_url, cfg.pool_size)
     }
+}
+impl DatabaseWriter for PostgresDB {
+    fn create_user(&self, user: User) {}
+
+    fn update_user(&self, user: User) {}
+}
+
+impl DatabaseReader for PostgresDB {
+    fn get_info(&self, user: &User) {}
 }

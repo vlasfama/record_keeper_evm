@@ -1,9 +1,9 @@
 use crate::database::postgres::schema::*;
+use diesel::prelude::*;
 use diesel::{prelude::*, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
-use diesel::prelude::*;
-use std::env;
 use serde_json::Value;
+use std::env;
 #[derive(Serialize, Deserialize, Queryable, Debug)]
 #[diesel(table_name = crate::schema::user)]
 #[diesel(check_for_backend(diesel::pg::Pg))]

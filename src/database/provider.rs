@@ -1,34 +1,12 @@
-use crate::model::*;
+use crate::model::User;
 
 pub trait DatabaseReader {
-    fn get_wallet(&self, chain_id: &str) -> anyhow::Result<Option<()>>;
-    fn get_address(&self, user_id: &str, chain_id: &str) -> anyhow::Result<Option<()>>;
-    fn has_address(&self, address: &str, chain_id: &str) -> anyhow::Result<bool>;
+    fn get_info(&self, user: &User);
 }
 pub trait DatabaseWriter {
-    fn create_user(
-        &self,
-        user_id: &str,
-        chain_id: &str,
-        wallet_id: &str,
-        wallet_address: &str,
-    ) -> anyhow::Result<()>;
+    fn create_user(&self, user: User);
 
-    fn remove_user(
-        &self,
-        user_id: &str,
-        chain_id: &str,
-        wallet_id: &str,
-        wallet_address: &str,
-    ) -> anyhow::Result<()>;
-
-    fn update_user(
-        &self,
-        user_id: &str,
-        chain_id: &str,
-        wallet_id: &str,
-        wallet_address: &str,
-    ) -> anyhow::Result<()>;
+    fn update_user(&self, user: User);
 }
 
 pub trait DatabaseProvider: DatabaseReader + DatabaseWriter {}

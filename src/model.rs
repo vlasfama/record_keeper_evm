@@ -32,5 +32,5 @@ pub struct EthereumTransaction {
     gas_price: u64,
     gas_limit: u64,
     nonce: u64,
-    data: Option<String>, // Optional field for transaction data
+    data: Option<String>,
 }

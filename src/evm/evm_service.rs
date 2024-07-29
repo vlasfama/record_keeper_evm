@@ -1,5 +1,6 @@
 use anyhow::Error;
-use revm::Evm;
+use revm::interpreter::Contract;
+use revm::{Evm, EvmBuilder};
 use std::fs::File;
 use std::io::Read;
 use std::result::Result;
@@ -28,7 +29,6 @@ where
         let bytecode_path = "./build/UserRecord.bin";
         let bytecode = load_file(bytecode_path).expect("Unable to load bytecode");
         let bytecode = hex::decode(bytecode.trim()).expect("Decoding failed");
-        let mut evm = Evm::builder().build();
 
         Ok(())
     }
