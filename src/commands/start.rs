@@ -1,5 +1,5 @@
 use crate::api::config::Config as APIConfig;
-use crate::api::server::create_router;
+use crate::api::server::ServiceHandler;
 use crate::database::postgres::config::Config as PostgresConfig;
 use crate::database::postgres::postgres::PostgresDB;
 use crate::evm::evm_service::EvmHandler;
@@ -36,8 +36,11 @@ impl StartCmd {
         })
         .expect("Error setting Ctrl-C handler");
         let pq = PostgresDB::from_config(&self.postgres_config).unwrap();
-        let evm_handler = EvmHandler::new(pq);
-        let app = create_router();
+        let _evm_handler = EvmHandler::new(pq);
+
+        let pq = PostgresDB::from_config(&self.postgres_config).unwrap();
+        let handler = Arc::new(ServiceHandler::new(Arc::new(pq)));
+        let app = handler.create_router();
         info!("Listening on {}", self.api_config.address);
         let addr: std::net::SocketAddr = self.api_config.address.parse().expect("Invalid address");
         let listener = tokio::net::TcpListener::bind(addr)
