@@ -36,8 +36,7 @@ impl StartCmd {
         })
         .expect("Error setting Ctrl-C handler");
         let pq = PostgresDB::from_config(&self.postgres_config).unwrap();
-        let _evm_handler = EvmHandler::new(pq);
-
+        let _evm_handler = EvmHandler::new(Arc::new(pq));
         let pq = PostgresDB::from_config(&self.postgres_config).unwrap();
         let handler = Arc::new(ServiceHandler::new(Arc::new(pq)));
         let app = handler.create_router();

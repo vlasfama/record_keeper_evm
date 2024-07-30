@@ -1,14 +1,15 @@
+use super::model::UserRecord as db_user_record;
+use super::schema::user_records;
 use crate::database::postgres::config::Config;
 use crate::database::provider::DatabaseReader;
 use crate::database::provider::DatabaseWriter;
-use crate::model::User;
+use crate::model::UserInfo;
+use crate::model::UserRecords;
 use anyhow::Result;
-use chrono::{NaiveDateTime, Utc};
 use diesel::pg::PgConnection;
-use diesel::prelude::*;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./src/database/postgres/migrations/");
 
 pub struct PostgresDB {
@@ -28,17 +29,17 @@ impl PostgresDB {
     }
 }
 impl DatabaseWriter for PostgresDB {
-    fn create_user(&self, user: User) -> Result<()> {
+    fn create_user(&self, record: UserInfo) -> Result<()> {
         Ok(())
     }
 
-    fn update_user(&self, user: User) -> Result<()> {
+    fn update_user(&self, user_record: UserInfo) -> Result<()> {
         Ok(())
     }
 }
 
 impl DatabaseReader for PostgresDB {
-    fn get_info(&self, user: &User) -> Result<()> {
-        Ok(())
+    fn get_info(&self, addrr: &str) -> Result<(UserInfo)> {
+        todo!()
     }
 }
