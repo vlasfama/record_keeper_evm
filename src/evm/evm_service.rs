@@ -1,12 +1,17 @@
 use anyhow::Error;
 use ethers_core::abi::{Function, Hash, Param, ParamType, Token};
-use ethers_core::types::{Call, H256};
+use ethers_core::types::H160;
 use revm::inspectors::NoOpInspector;
-use revm::interpreter::{CallInputs, CallScheme, CallValue, Contract};
+use revm::interpreter::{CallInputs, CallScheme, CallValue, Contract, Interpreter};
 use revm::primitives::{
-    AccountInfo, Address, Bytecode, Bytes, Env, ExecutionResult, FixedBytes, U256,
+    AccountInfo, Address, BlockEnv, Bytecode, Bytes, CfgEnv, Env, ExecutionResult, FixedBytes,
+    HandlerCfg, TxEnv, ISTANBUL, U256,
 };
-use revm::{inspector_handle_register, Evm, EvmBuilder, InMemoryDB, StateBuilder};
+
+use revm::{
+    inspector_handle_register, Context, CreateFrame, Evm, Frame, FrameData, Handler, InMemoryDB,
+};
+
 use std::fs::File;
 use std::io::Read;
 use std::result::Result;
@@ -33,43 +38,62 @@ where
     }
 
     pub fn excute_contract(&mut self) -> Result<(), Error> {
-        let bytecode_path = "./build/UserRecords.bin";
-        let bytecode = load_file(bytecode_path).expect("Unable to load bytecode");
-        let bytecode = hex::decode(bytecode.trim()).expect("Decoding failed");
-        println!("the byte code:{:?}", bytecode);
-        let bytes = Bytes::from(bytecode);
-        let mut db = InMemoryDB::default();
-        let balance = U256::from(9999999);
-        let address = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e".parse()?;
-
-        //create contract instance
-        let contract = Contract {
-            input: bytes.clone(),
-            bytecode: Bytecode::LegacyRaw(bytes),
-            hash: Some(FixedBytes::<32>::ZERO),
-            target_address: Address::ZERO,
-            bytecode_address: None,
-            caller: Address::from_str("0x742d35Cc6634C0532925a3b844Bc454e4438f44e")?,
-            call_value: U256::ZERO,
+        let mut context = Context::new_empty();
+        let check_point = context.evm.journaled_state.checkpoint();
+        let handler_config = HandlerCfg {
+            spec_id: revm::primitives::SpecId::ISTANBUL,
         };
+        let handler = Handler::new(handler_config);
+        let mut db = InMemoryDB::default();
+        let bytecode_path = "./build/UserRecords.bin";
+        let byte = load_file(bytecode_path).expect("Unable to load bytecode");
+        let bytecode: Vec<u8> = hex::decode(byte.trim()).expect("Decoding failed");
+        println!("the byte code:{:?}", bytecode);
+
+        let bytes = Bytes::from(bytecode);
+        let legacy_raw = Bytecode::LegacyRaw(bytes.clone());
+
+        let balance = U256::from(9999999);
+        let sender_address = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e".parse()?;
         //Account info and pass balance to it.
-        let info = AccountInfo {
+        let senderinfo = AccountInfo {
             balance,
             ..Default::default()
         };
 
-        db.insert_account_info(address, info);
+        db.insert_account_info(sender_address, senderinfo);
 
-        let mut evm = Evm::builder()
-            .with_ref_db(db)
-            .with_external_context(NoOpInspector)
-            .append_handler_register(inspector_handle_register)
-            .build();
+        //create contract instance
+        let contract = Contract::new(
+            bytes.clone(),
+            legacy_raw,
+            Some(FixedBytes::<32>::ZERO),
+            Address::ZERO,
+            None,
+            Address::from_str("0x742d35Cc6634C0532925a3b844Bc454e4438f44e")?,
+            U256::ZERO,
+        );
 
-        let commit = evm.transact_commit()?;
-        match commit {
+        let interpreter = Interpreter::new(contract, 1200000, false);
+
+        let create_frame = CreateFrame {
+            created_address: Address::from_str("0x742d35Cc6634C0532925a3b844Bc454e4438f44e")?,
+            frame_data: FrameData {
+                checkpoint: check_point,
+                interpreter,
+            },
+        };
+        let excute_frame = Frame::Create(Box::new(create_frame));
+        let mut evm = Evm::new(context, handler);
+        let frame_excecute = evm.run_the_loop(excute_frame)?;
+        println!("frame_excecute:{:?}", frame_excecute);
+        let commit = evm.transact()?;
+        match commit.result {
             ExecutionResult::Success { output, .. } => {
                 println!("Transaction executed successfully: {:?}", output);
+                //safe the owner account in inmemory
+                //safe the owner address and byte code in memory
+                //todo()
             }
             ExecutionResult::Revert { output, .. } => {
                 println!("Transaction reverted: {:?}", output);
@@ -101,23 +125,24 @@ where
             .append_handler_register(inspector_handle_register)
             .build();
 
-        let call_inputs = CallInputs {
-            input: data.clone(),
-            return_memory_offset: 0..32, // Adjust as necessary
-            gas_limit: 3000000,          // Example gas limit
-            bytecode_address: Address::from_str("0x742d35Cc6634C0532925a3b844Bc454e4438f44e")?, // Contract address
-            target_address: Address::from_str("0x742d35Cc6634C0532925a3b844Bc454e4438f44e")?, // Contract address
-            caller: Address::from_str("0x742d35Cc6634C0532925a3b844Bc454e4438f44e")?,
-            value: CallValue::default(), // No value being transferred
-            scheme: CallScheme::Call,
-            is_static: false,
-            is_eof: false,
-        };
+        // let call_inputs = CallInputs {
+        //     input: data.clone(),
+        //     return_memory_offset: 0..32, // Adjust as necessary
+        //     gas_limit: 3000000,          // Example gas limit
+        //     bytecode_address: Address::from_str("0x742d35Cc6634C0532925a3b844Bc454e4438f44e")?,
+        //     target_address: Address::from_str("0x267be1c1d684f78cb4f6a176c4911b741e4ffdc0")?,
+        //     caller: Address::from_str("0x742d35Cc6634C0532925a3b844Bc454e4438f44e")?,
+        //     value: CallValue::default(),
+        //     scheme: CallScheme::Call,
+        //     is_static: false,
+        //     is_eof: false,
+        // };
 
         let commit = evm.transact_commit()?;
         match commit {
             ExecutionResult::Success { output, .. } => {
                 println!("Transaction executed successfully: {:?}", output);
+                let result = self.database.create_user(user)?;
             }
             ExecutionResult::Revert { output, .. } => {
                 println!("Transaction reverted: {:?}", output);
